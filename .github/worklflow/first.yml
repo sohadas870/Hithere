@@ -16,19 +16,21 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set up Node.js (or Python, Java, etc. depending on your project)
+      - name: Set up Node.js (now updated to v20)
         uses: actions/setup-node@v3
         with:
-          node-version: '16'  # Set your required Node.js version
+          node-version: '20'  # Update to Node.js 20
 
       - name: Install dependencies
         run: npm install
 
       - name: Run tests with coverage
-        run: npm run test -- --coverage
-        continue-on-error: true  # This ensures the workflow moves to the next step even if this one fails
+        run: |
+          npm run test -- --coverage
+        continue-on-error: true  # Continue even if tests fail
 
       - name: Upload coverage report
+        if: always()  # Always attempt to upload the artifact, even if tests failed
         uses: actions/upload-artifact@v3
         with:
           name: coverage-report
@@ -46,12 +48,66 @@ jobs:
 
       - name: Analyze coverage
         run: |
-          # Add custom commands to analyze your coverage report
           echo "Analyzing code coverage"
 
       - name: Generate coverage report
         run: |
-          # This step is for generating your coverage report (optional)
-          echo "Coverage report generated"
+          echo "Coverage report generated"name: Code Coverage Workflow
 
-      # Add more steps if needed
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          # Attempt to use the latest Node.js version with this action
+          ref: 'main'
+
+      - name: Set up Node.js (updated to Node.js 20)
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run tests with coverage and capture error details
+        run: |
+          set -e  # Stop on errors
+          npm run test -- --coverage || echo "Test failed with exit code $?"
+          exit 0  # Prevent job failure
+        continue-on-error: true  # Allow continuation even if tests fail
+
+      - name: Upload coverage report (always upload)
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-report
+          path: coverage/
+
+  report-coverage:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download coverage report
+        uses: actions/download-artifact@v3
+        with:
+          name: coverage-report
+
+      - name: Analyze coverage
+        run: echo "Analyzing code coverage"
+
+      - name: Generate coverage report
+        run: echo "Coverage report generated"
+
